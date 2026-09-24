@@ -1,0 +1,17 @@
+[project]
+name = "odoo-warehouse-v2"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "VanilaMint", email = "minhhh36@gmail.com" }
+]
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+odoo-warehouse-v2 = "odoo_warehouse_v2:main"
+
+[build-system]
+requires = ["uv_build>=0.12.2,<0.13.0"]
+build-backend = "uv_build"

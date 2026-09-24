@@ -1,0 +1,106 @@
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: local_minio_s3
+    ports:
+      - "9000:9000" 
+      - "9001:9001" 
+    environment:
+      - MINIO_ROOT_USER=${MINIO_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_PASSWORD}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - odoo-datalake-v2
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: local_minio_init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until (/usr/bin/mc alias set myminio http://minio:9000 ${MINIO_USER} ${MINIO_PASSWORD}); 
+      do echo 'Waiting for MinIO to start...'; sleep 1; done;
+      /usr/bin/mc mb myminio/warehouse --ignore-existing;
+      /usr/bin/mc anonymous set download myminio/warehouse;
+      echo 'Bucket created and public read policy applied successfully!';
+      exit 0;
+      "
+    networks:
+      - odoo-datalake-v2
+
+  nessie_db:
+    image: postgres:15
+    container_name: local_nessie_db
+    environment:
+      - POSTGRES_DB=${NESSIE_DB_NAME}
+      - POSTGRES_USER=${NESSIE_DB_USER}
+      - POSTGRES_PASSWORD=${NESSIE_DB_PASSWORD}
+    ports:
+      - "5434:5432" 
+    volumes:
+      - nessie_pg_data:/var/lib/postgresql/data
+    networks:
+      - odoo-datalake-v2
+
+  nessie:
+    image: ghcr.io/projectnessie/nessie:latest
+    container_name: local_nessie_catalog
+    depends_on:
+      - nessie_db
+    ports:
+      - "19120:19120"
+    environment:
+      - NESSIE_VERSION_STORE_TYPE=JDBC
+      - QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://nessie_db:5432/${NESSIE_DB_NAME}
+      - QUARKUS_DATASOURCE_USERNAME=${NESSIE_DB_USER}
+      - QUARKUS_DATASOURCE_PASSWORD=${NESSIE_DB_PASSWORD}
+      - NESSIE_CATALOG_DEFAULT_WAREHOUSE=warehouse
+      - NESSIE_CATALOG_WAREHOUSES_WAREHOUSE_LOCATION=s3://warehouse/
+      - NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_ENDPOINT=http://minio:9000
+      - NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_REGION=us-east-1
+      - NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_PATH_STYLE_ACCESS=true
+      - NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_AUTH_TYPE=STATIC
+      - NESSIE_CATALOG_SERVICE_S3_DEFAULT_OPTIONS_ACCESS_KEY=urn:nessie-secret:quarkus:s3creds
+      - S3CREDS_NAME=${MINIO_USER}
+      - S3CREDS_SECRET=${MINIO_PASSWORD}
+    networks:
+      - odoo-datalake-v2
+
+  trino:
+    image: trinodb/trino:latest
+    container_name: local_trino_engine
+    depends_on:
+      - minio
+      - nessie
+    ports:
+      - "8089:8080"
+    environment:
+      - JAVA_TOOL_OPTIONS=-Xmx7G
+    volumes:
+      - ./trino_catalog:/etc/trino/catalog
+    networks:
+      - odoo-datalake-v2
+  
+  cloudbeaver:
+    image: dbeaver/cloudbeaver:latest
+    container_name: local_sql_client
+    depends_on:
+      - trino
+    ports:
+      - "8978:8978"
+    volumes:
+      - cloudbeaver_data:/opt/cloudbeaver/workspace
+    networks:
+      - odoo-datalake-v2
+
+volumes:
+  nessie_pg_data:
+  cloudbeaver_data:
+  minio_data:
+
+networks:
+  odoo-datalake-v2:
+    external: true
