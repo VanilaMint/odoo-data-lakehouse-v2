@@ -7,7 +7,11 @@ authors = [
     { name = "VanilaMint", email = "minhhh36@gmail.com" }
 ]
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "dlt[iceberg,postgres,s3,sql-database]>=1.30.0",
+    "dotenv>=0.9.9",
+    "pyiceberg[pyarrow,s3fs]>=0.12.0",
+]
 
 [project.scripts]
 odoo-warehouse-v2 = "odoo_warehouse_v2:main"
@@ -15,3 +19,9 @@ odoo-warehouse-v2 = "odoo_warehouse_v2:main"
 [build-system]
 requires = ["uv_build>=0.12.2,<0.13.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-mock>=3.16.0",
+]

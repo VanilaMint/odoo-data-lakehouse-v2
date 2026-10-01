@@ -6,7 +6,7 @@ services:
     ports:
       - "8069:8069"
     environment:
-      - HOST=${ODOO_DB_HOST}
+      - HOST=db
       - USER=${ODOO_DB_USER}
       - PASSWORD=${ODOO_DB_PASSWORD}
     volumes:
@@ -17,12 +17,12 @@ services:
   db:
     image: postgres:15
     environment:
-      - POSTGRES_DB=${ODOO_DB_NAME}
+      - POSTGRES_DB=postgres
       - POSTGRES_USER=${ODOO_DB_USER}
       - POSTGRES_PASSWORD=${ODOO_DB_PASSWORD}
       - PGDATA=/var/lib/postgresql/data/pgdata
     ports:
-      - "5432:5432" 
+      - "5433:5432" 
     volumes:
       - odoo-db-data:/var/lib/postgresql/data/pgdata
     networks:
